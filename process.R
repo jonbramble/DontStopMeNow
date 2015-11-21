@@ -38,20 +38,19 @@ yb$sd <- apply(yb[2:7],1,sd)
 #here we correct the colnames
 colnames(yb) <- c("Time","R0","R1","R2","R3","R4","R5","buffer","lipid","temp","conc","Avg","sd")
 
+#To inspect the individual repeats need a melt version
+myb <- melt(yb,id.vars=c("Time","buffer","lipid","temp","conc","Avg","Var"), variable.name="R",value.name="DF")
 
+#use the plot_function
 p <- plot_trace(yb,"PBS","POPCPOPS",37)
 p
 
+#how does the sd look over time
 syb <- subset(yb, buffer == "PBS" & lipid == "POPCPOPS" & temp == 45)
 r <- ggplot( syb, aes(x=Time,y=Avg, group=conc, color=conc)) + geom_line() + theme_minimal(base_size=22) + xlab("Time (s)") + ylab("Var") + scale_color_discrete(name="Concentration")
 r + geom_ribbon(aes(ymin=Avg-sd,ymax=Avg+sd),alpha=0.1)
 
-
-m <- melt(yb,id.vars=c("Time","buffer","lipid","temp","conc","Avg","Var"), variable.name="R",value.name="DF")
-
-
-
-
-tset <- subset(m, buffer == "PBS" & lipid == "POPCPOPS" & temp == 25 & conc==12 )
+#look at repeats in detail
+tset <- subset(myb, buffer == "PBS" & lipid == "POPCPOPS" & temp == 25 & conc==12 )
 q <- ggplot(tset,aes(x=Time,y=DF,group=R,color=R))
 q + geom_line() + theme_minimal(base_size=18)
