@@ -3,7 +3,8 @@ library(plyr)
 library(reshape2)
 library(minpack.lm)
 
-base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
+#base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
+base_dir = "/home/jon/Documents/Data/StoppedFlow/Durham_140515"
 data.sources = list.files(base_dir,pattern="*.csv",full.names=TRUE)
 
 #function to read in the data files, ignoring the first 34 rows of csv file
@@ -66,32 +67,39 @@ exp1 <- function(tt,params){
   params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))
 }
 
+#calculate the residuals
 residFun <- function(p,observed,tt){
   observed - exp1(tt,p)
 }
 
+#run nls inside function
+fitSet <- function(data,params,column){
+  obs <- subset(data, R==column)
+  nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t)
+  #nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t, control = nls.lm.control(nprint=1))
+  summary(nls.out)
+  ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$deviance)
+}
+
+
 t=seq(0,60,length.out=1000)
-
-pp = list(A=9,B=8,k1=0.05)
-simDNoisy <- exp1(t,pp) #+ rnorm(1000,sd=.01)
-plot(t,simDNoisy,type="l")
-#rs <- residFun(list(A=10,k1=-0.01),simDNoisy,t)
-
 parStart <- list(A=9,B=8,k1=0.01)
+#list of columns
+datacols <- c("R0","R1","R2","R3","R4","R5")
 
-obs <- subset(tset, R=="R5")
+fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
 
-nls.out <- nls.lm(par=parStart, fn = residFun, observed = obs$DF, tt = t, control = nls.lm.control(nprint=1))
-summary(nls.out)
 
+#plotting
 fitLine <- sapply(t,exp1,nls.out$par)
 
-layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1), respect = FALSE)
-par(mar = c(0, 4.1, 4.1, 2.1))
-plot(obs$Time,obs$DF,xaxt = 'n')
-lines(t,fitLine)
-par(mar = c(4.1, 4.1, 0, 2.1))
-plot(t,nls.out$fvec)
+layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1.4), respect = FALSE)
+par(mar = c(0, 4.1, 3, 2.1))
+obs <- subset(data, R=="R0")
+plot(obs$Time,obs$DF,xaxt = 'n',ylab="F")
+lines(t,fitLine,col="#FF0000")
+par(mar = c(4.1, 4.1, 0.3, 2.1))
+plot(t,nls.out$fvec,ylab = "Residuals", xlab = "Time (s)")
 
 
 
