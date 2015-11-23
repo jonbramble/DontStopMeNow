@@ -4,7 +4,7 @@ library(reshape2)
 library(minpack.lm)
 
 #base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
-base_dir = "/home/jon/Documents/Data/StoppedFlow/Durham_140515"
+base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
 data.sources = list.files(base_dir,pattern="*.csv",full.names=TRUE)
 
 #function to read in the data files, ignoring the first 34 rows of csv file
@@ -45,11 +45,11 @@ colnames(yb) <- c("Time","R0","R1","R2","R3","R4","R5","buffer","lipid","temp","
 myb <- melt(yb,id.vars=c("Time","buffer","lipid","temp","conc","Avg","sd"), variable.name="R",value.name="DF")
 
 #use the plot_function
-p <- plot_trace(yb,"PBS","POPCPOPS",37)
+p <- plot_trace(yb,"PBS","POPCPOPS",25)
 p
 
 #how does the sd look over time
-syb <- subset(yb, buffer == "PBS" & lipid == "POPCPOPS" & temp == 45)
+syb <- subset(yb, buffer == "PBS" & lipid == "POPCPOPS" & temp == 25)
 r <- ggplot( syb, aes(x=Time,y=Avg, group=conc, color=conc)) + geom_line() + theme_minimal(base_size=22) + xlab("Time (s)") + ylab("Var") + scale_color_discrete(name="Concentration")
 r + geom_ribbon(aes(ymin=Avg-sd,ymax=Avg+sd),alpha=0.1)
 
@@ -67,39 +67,71 @@ exp1 <- function(tt,params){
   params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))
 }
 
+exp2 <- function(tt,params){
+  params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))+(params$A-params$B)*(1-exp(-1*params$k2*tt))
+}
+
 #calculate the residuals
 residFun <- function(p,observed,tt){
-  observed - exp1(tt,p)
+  observed - exp2(tt,p)
 }
 
 #run nls inside function
+
+fitTrace <- function(data,params){
+  nls.out <- nls.lm(par=params, fn = residFun, observed = data$DF, tt = t)
+  summary(nls.out)
+  ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
+}
+
 fitSet <- function(data,params,column){
   obs <- subset(data, R==column)
   nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t)
-  #nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t, control = nls.lm.control(nprint=1))
   summary(nls.out)
-  ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$deviance)
+  ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
 }
 
-
 t=seq(0,60,length.out=1000)
-parStart <- list(A=9,B=8,k1=0.01)
+
+#initial guess
+parStart <- list(A=9,B=8,k1=0.01,k2=0.001)
+
 #list of columns
 datacols <- c("R0","R1","R2","R3","R4","R5")
-
+fitData <- lapply(datacols,fitSet,data=a,params=parStart)
 fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
 
+nls.out <- fitSet(tset,parStart,"R5")  # ONLY WORKS IF OUTPUT IS NLS.OUT
 
 #plotting
-fitLine <- sapply(t,exp1,nls.out$par)
-
+fitLine <- sapply(t,exp2,nls.out$par)
 layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1.4), respect = FALSE)
 par(mar = c(0, 4.1, 3, 2.1))
-obs <- subset(data, R=="R0")
+obs <- subset(tset, R=="R5")
 plot(obs$Time,obs$DF,xaxt = 'n',ylab="F")
 lines(t,fitLine,col="#FF0000")
 par(mar = c(4.1, 4.1, 0.3, 2.1))
 plot(t,nls.out$fvec,ylab = "Residuals", xlab = "Time (s)")
 
+## Apply to all samples
+#make a grid over the possible options
+buffer <- c("Tris","PBS")
+lipid <- c("POPC","POPCPOPS")
+temp <- c(12,25,37,45)
+conc <- c(6,12,25,50,100)
+repeats <-  c("R0","R1","R2","R3","R4","R5")
+samples <- data.frame(expand.grid(buffer,lipid,temp,conc,repeats))
+colnames(samples) <- c("buffer","lipid","temp","conc","repeats")
 
+#subset the data from the melt version and run the fit over each sample
+dataSet <- function(params,data){
+ wds <- subset(myb, buffer==params$buffer & lipid==params$lipid & temp==params$temp & conc==params$conc & R==as.character(params$repeats))
+ print(dim(wds))
+ fitData <- fitTrace(wds,parStart)
+}
+
+wps <- dataSet(samples[456,],myb)
+
+#b <- apply(samples,1,dataSet,myb) #eventually apply over data frame of possible values
+# problem is that apply and direct call dont seem to exist inside function is the same form. 
 
