@@ -124,14 +124,20 @@ samples <- data.frame(expand.grid(buffer,lipid,temp,conc,repeats))
 colnames(samples) <- c("buffer","lipid","temp","conc","repeats")
 
 #subset the data from the melt version and run the fit over each sample
-dataSet <- function(params,data){
- wds <- subset(myb, buffer==params$buffer & lipid==params$lipid & temp==params$temp & conc==params$conc & R==as.character(params$repeats))
- print(dim(wds))
- fitData <- fitTrace(wds,parStart)
-}
+#dataSet <- function(params,data){
+ #wds <- subset(myb, buffer==params$buffer & lipid==params$lipid & temp==params$temp & conc==params$conc & R==as.character(params$repeats))
+ #wds <- subset(data,buffer==params["buffer"])
+ #print(dim(wds))
+ #fitData <- fitTrace(wds,parStart)
+#}
 
-wps <- dataSet(samples[456,],myb)
+#wps <- dataSet(samples[456,],myb)
 
 #b <- apply(samples,1,dataSet,myb) #eventually apply over data frame of possible values
 # problem is that apply and direct call dont seem to exist inside function is the same form. 
 
+# not correct either
+processSet <- function(data,buffer,lipid,temp,conc,repeats){
+  wds <- subset(data,buffer==buffer & lipid==lipid & conc==conc & temp==temp)
+}
+abc <- processSet(myb,c(samples[456,]))
