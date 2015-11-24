@@ -98,7 +98,7 @@ parStart <- list(A=9,B=8,k1=0.01,k2=0.001)
 
 #list of columns
 datacols <- c("R0","R1","R2","R3","R4","R5")
-fitData <- lapply(datacols,fitSet,data=a,params=parStart)
+#fitData <- lapply(datacols,fitSet,data=a,params=parStart)
 fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
 
 nls.out <- fitSet(tset,parStart,"R5")  # ONLY WORKS IF OUTPUT IS NLS.OUT
@@ -124,20 +124,34 @@ samples <- data.frame(expand.grid(buffer,lipid,temp,conc,repeats))
 colnames(samples) <- c("buffer","lipid","temp","conc","repeats")
 
 #subset the data from the melt version and run the fit over each sample
-#dataSet <- function(params,data){
- #wds <- subset(myb, buffer==params$buffer & lipid==params$lipid & temp==params$temp & conc==params$conc & R==as.character(params$repeats))
- #wds <- subset(data,buffer==params["buffer"])
- #print(dim(wds))
- #fitData <- fitTrace(wds,parStart)
-#}
-
-#wps <- dataSet(samples[456,],myb)
-
-#b <- apply(samples,1,dataSet,myb) #eventually apply over data frame of possible values
-# problem is that apply and direct call dont seem to exist inside function is the same form. 
-
-# not correct either
-processSet <- function(data,buffer,lipid,temp,conc,repeats){
-  wds <- subset(data,buffer==buffer & lipid==lipid & conc==conc & temp==temp)
+profunc <- function(params,data){
+  #extract these parameters
+  param_buffer <- params["buffer"]
+  param_lipid <- params["lipid"]
+  param_conc <- as.numeric(params["conc"]) #and convert the numerical ones
+  param_temp <- as.numeric(params["temp"])
+  param_repeats <- params["repeats"]
+  wds <- subset(data,buffer==param_buffer & lipid==param_lipid & conc==param_conc & temp == param_temp & R== param_repeats)
+  setdim <- dim(wds)[1] # find the data length which should be 1000 in this test case
+  fitParams <- NULL
+  if(setdim > 0) {
+   print("fitting data set...")
+    # need error handling here
+    try(fitParams <- fitTrace(wds,parStart));
+    if(is.null(fitParams)){
+      fitParams <- rep(0,5)
+    }
+  } else {
+    fitParams <- rep(0,5)
+  }
+  return(fitParams)
 }
-abc <- processSet(myb,c(samples[456,]))
+
+# need to sort out retern types
+x <- apply(samples,1,profunc,data=myb)
+
+res <- data.frame(cbind(samples,t(x)))
+colnames(res) <- c("buffer","lipid","temp","conc","repeats","A","B","k1","k2","d")
+
+a<-subset(res,buffer=="PBS" & lipid=="POPCPOPS" & temp==45)
+plot(a$conc,a$A-a$B)
