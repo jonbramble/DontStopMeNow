@@ -3,3 +3,11 @@
 .RData
 
 *.svg
+figure
+*.aux
+*.tex
+*.log
+*.pdf
+*.out
+
+*~
