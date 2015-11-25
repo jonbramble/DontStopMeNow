@@ -29,7 +29,7 @@ plot_trace <- function(df,abuffer,alipid,atemp){
   lipid_str <- paste("Lipid:", alipid)
   temp_str <- paste("Temp:", atemp, "C")
   title_str <- paste(buffer_str,lipid_str,temp_str, sep=", ")
-  print(title_str)
+  #print(title_str)
   p <- ggplot( plot_data, aes(x=Time,y=Avg, group=conc, color=conc)) + geom_line() + ggtitle(title_str)+ theme_minimal(base_size=22) + xlab("Time (s)") + ylab("Fluorescence Intensity") + scale_color_discrete(name="Concentration")
 }
 
@@ -88,30 +88,12 @@ fitSet <- function(data,params,column){
   obs <- subset(data, R==column)
   nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t)
   summary(nls.out)
-  ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
+  #ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
+  #ret <- list(params=nls.out$par)
+  ret <- nls.out
 }
 
 t=seq(0,60,length.out=1000)
-
-#initial guess
-parStart <- list(A=9,B=8,k1=0.01,k2=0.001)
-
-#list of columns
-datacols <- c("R0","R1","R2","R3","R4","R5")
-#fitData <- lapply(datacols,fitSet,data=a,params=parStart)
-fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
-
-nls.out <- fitSet(tset,parStart,"R5")  # ONLY WORKS IF OUTPUT IS NLS.OUT
-
-#plotting
-fitLine <- sapply(t,exp2,nls.out$par)
-layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1.4), respect = FALSE)
-par(mar = c(0, 4.1, 3, 2.1))
-obs <- subset(tset, R=="R5")
-plot(obs$Time,obs$DF,xaxt = 'n',ylab="F")
-lines(t,fitLine,col="#FF0000")
-par(mar = c(4.1, 4.1, 0.3, 2.1))
-plot(t,nls.out$fvec,ylab = "Residuals", xlab = "Time (s)")
 
 ## Apply to all samples
 #make a grid over the possible options
@@ -120,8 +102,121 @@ lipid <- c("POPC","POPCPOPS")
 temp <- c(12,25,37,45)
 conc <- c(6,12,25,50,100)
 repeats <-  c("R0","R1","R2","R3","R4","R5")
-samples <- data.frame(expand.grid(buffer,lipid,temp,conc,repeats))
-colnames(samples) <- c("buffer","lipid","temp","conc","repeats")
+samples <- data.frame(expand.grid(repeats,conc,temp,lipid,buffer))
+sets <- data.frame(expand.grid(conc,temp,lipid,buffer))
+colnames(samples) <- c("repeats","conc","temp","lipid","buffer")
+colnames(sets) <- c("conc","temp","lipid","buffer")
+sets$row <- seq(1,dim(sets)[1])
+
+#does the combination have data?
+isData <- function(data,params){
+  pl = as.list(params)
+  wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
+  setdim <- dim(wds)[1] # find the data length which should be 1000 in this test case
+  ret <- FALSE
+  if(setdim>0){
+    ret <- TRUE
+  }
+  else {
+    ret <- FALSE
+  }
+  ret
+}
+
+sets$data <- apply(sets,1, isData, data=myb)
+
+#fitting the sets for each sample type
+flowSet <- function(data,params){
+  pl = as.list(params)
+  wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
+  setdim <- dim(wds)[1] # find the data length which should be 1000 in this test case
+  fitParams <- NULL
+  if(setdim > 0) {
+    print("fitting data set...")
+    # need error handling here
+    try(fitParams <- fitSet(wds,parStart,"R2"));
+    if(is.null(fitParams)){
+      fitParams <- rep(NA,5)
+    }
+    #parStart <- list(A=fitParams$A,B=fitParams$B,k1=fitParams$k1,k2=fitParams$k2)
+  } else {
+    print("no data")
+    fitParams <- rep(NA,5)
+  }
+  return(fitParams)
+}
+
+#plot the sets for each sample type
+plotSet <- function(data,params){
+  pl = as.list(params)
+  buffer_str <- paste("Buffer:",pl$buffer)
+  lipid_str <- paste("Lipid:", pl$lipid)
+  temp_str <- paste("Temp:", pl$temp, "C")
+  conc_str <- paste("Concentration:", pl$conc)
+  title_str <- paste(buffer_str,lipid_str,temp_str, conc_str, sep=", ")
+  save_str <- paste(pl$row,pl$buffer,pl$lipid,pl$conc,pl$temp,sep="_")
+  wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
+  setdim <- dim(wds)[1]
+  if(setdim>0){
+    print("plotting...")
+    p <- ggplot( wds, aes(x=Time,y=DF, group=R, color=R)) + geom_line() + theme_minimal(base_size=10) + ggtitle(title_str)
+    p
+    ggsave(filename=paste(save_str,".svg"),width=6, height=4)
+  }
+  else
+  {
+    print("no data")
+  }
+ 
+}
+
+plotSetKnitr <- function(data,params){
+  pl = as.list(params)
+  buffer_str <- paste("Buffer:",pl$buffer)
+  lipid_str <- paste("Lipid:", pl$lipid)
+  temp_str <- paste("Temp:", pl$temp, "C")
+  conc_str <- paste("Concentration:", pl$conc)
+  title_str <- paste(buffer_str,lipid_str,temp_str, conc_str, sep=", ")
+  save_str <- paste(pl$row,pl$buffer,pl$lipid,pl$conc,pl$temp,sep="_")
+  wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
+  setdim <- dim(wds)[1]
+  if(setdim>0){
+    p <- ggplot( wds, aes(x=Time,y=DF, group=R, color=R)) + geom_line() + theme_minimal(base_size=14) + ggtitle(title_str)
+  }
+  p
+}
+
+
+#initial guess
+parStart <- list(A=8,B=5,k1=0.1,k2=0.001)
+
+plotSet2(myb,sets[5,])
+a<-flowSet(myb,sets[13,])
+
+#plot all the svg files
+apply(sets,1,plotSet,data=myb)
+
+#puts all the plots into a list for knitr use
+allplots<-apply(sets,1,plotSetKnitr,data=myb)
+
+
+#fitData <- lapply(datacols,fitSet,data=a,params=parStart)
+#fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
+
+
+#nls.out <- fitSet(tset,parStart,"R5")  # ONLY WORKS IF OUTPUT IS NLS.OUT
+
+#plotting
+#fitLine <- sapply(t,exp2,nls.out$par)
+#layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1.4), respect = FALSE)
+#par(mar = c(0, 4.1, 3, 2.1))
+#obs <- subset(tset, R=="R5")
+#plot(obs$Time,obs$DF,xaxt = 'n',ylab="F")
+#lines(t,fitLine,col="#FF0000")
+#par(mar = c(4.1, 4.1, 0.3, 2.1))
+#plot(t,nls.out$fvec,ylab = "Residuals", xlab = "Time (s)")
+
+
 
 #subset the data from the melt version and run the fit over each sample
 profunc <- function(params,data){
