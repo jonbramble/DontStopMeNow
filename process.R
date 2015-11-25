@@ -1,7 +1,8 @@
 library(ggplot2)
 library(plyr)
-library(reshape2)
-library(minpack.lm)
+library(reshape2) 
+library(minpack.lm) #for non-linear least squares
+
 
 #base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
 base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
@@ -71,6 +72,8 @@ exp2 <- function(tt,params){
   params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))+(params$A-params$B)*(1-exp(-1*params$k2*tt))
 }
 
+
+
 #calculate the residuals
 residFun <- function(p,observed,tt){
   observed - exp2(tt,p)
@@ -129,15 +132,14 @@ sets$data <- apply(sets,1, isData, data=myb)
 flowSet <- function(data,params){
   pl = as.list(params)
   wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
-  setdim <- dim(wds)[1] # find the data length which should be 1000 in this test case
   fitParams <- NULL
-  if(setdim > 0) {
+  if(pl$data == TRUE) {
     print("fitting data set...")
-    # need error handling here
     try(fitParams <- fitSet(wds,parStart,"R2"));
     if(is.null(fitParams)){
       fitParams <- rep(NA,5)
     }
+    #change parstart to the last values used
     #parStart <- list(A=fitParams$A,B=fitParams$B,k1=fitParams$k1,k2=fitParams$k2)
   } else {
     print("no data")
@@ -156,8 +158,7 @@ plotSet <- function(data,params){
   title_str <- paste(buffer_str,lipid_str,temp_str, conc_str, sep=", ")
   save_str <- paste(pl$row,pl$buffer,pl$lipid,pl$conc,pl$temp,sep="_")
   wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
-  setdim <- dim(wds)[1]
-  if(setdim>0){
+  if(pl$data == TRUE){
     print("plotting...")
     p <- ggplot( wds, aes(x=Time,y=DF, group=R, color=R)) + geom_line() + theme_minimal(base_size=10) + ggtitle(title_str)
     p
