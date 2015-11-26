@@ -17,12 +17,12 @@ j <- function(TT, tau, N0, a, f0) {
 TT <- seq(0, 8, length=501)
 
 ## parameter values underlying simulated data  
-p <- c(tau = 2.2, N0 = 1000, a = 0.25, f0 = 8)
+p <- c(tau = 2.2, N0 = 2000, a = 0.25, f0 = 8)
 
 ## get data 
 Ndet <- do.call("f", c(list(TT = TT), as.list(p)))
 ## with noise
-N <- Ndet +  rnorm(length(Ndet), mean=Ndet, sd=.01*max(Ndet))
+N <- Ndet +  rnorm(length(Ndet), sd=.01*max(Ndet))
 
 ## plot the data to fit
 par(mfrow=c(2,1), mar = c(3,5,2,1))  
@@ -37,7 +37,7 @@ fcn.jac <- function(p, TT, N, fcall, jcall)
   -do.call("jcall", c(list(TT = TT), as.list(p)))
 
 ## starting values 
-guess <- c(tau = 2.0, N0 = 1500, a = 1, f0 = 10)
+guess <- c(tau = 2.0, N0 = 1500, a = 2, f0 = 10)
 
 ## to use an analytical expression for the gradient found in fcn.jac
 ## uncomment jac = fcn.jac

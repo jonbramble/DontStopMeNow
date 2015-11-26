@@ -82,18 +82,18 @@ residFun <- function(p,observed,tt){
 #run nls inside function
 
 fitTrace <- function(data,params){
-  nls.out <- nls.lm(par=params, fn = residFun, observed = data$DF, tt = t)
+  nls.out <- nls.lm(par=params, fn = residFun, observed = data$DF, tt = t, control = nls.lm.control(nprint=1))
   summary(nls.out)
   ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
 }
 
 fitSet <- function(data,params,column){
   obs <- subset(data, R==column)
-  nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t)
+  nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t,control = nls.lm.control(nprint=0) )
   summary(nls.out)
   #ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
-  #ret <- list(params=nls.out$par)
-  ret <- nls.out
+  ret <- nls.out$par
+  #ret <- nls.out
 }
 
 t=seq(0,60,length.out=1000)
@@ -129,18 +129,18 @@ isData <- function(data,params){
 sets$data <- apply(sets,1, isData, data=myb)
 
 #fitting the sets for each sample type
-flowSet <- function(data,params){
+flowSet <- function(data,params,column){
   pl = as.list(params)
   wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer)
   fitParams <- NULL
   if(pl$data == TRUE) {
     print("fitting data set...")
-    try(fitParams <- fitSet(wds,parStart,"R2"));
+    try(fitParams <- fitSet(wds,parStart,column));
     if(is.null(fitParams)){
       fitParams <- rep(NA,5)
     }
     #change parstart to the last values used
-    #parStart <- list(A=fitParams$A,B=fitParams$B,k1=fitParams$k1,k2=fitParams$k2)
+    parStart <<- fitParams
   } else {
     print("no data")
     fitParams <- rep(NA,5)
@@ -189,10 +189,27 @@ plotSetKnitr <- function(data,params){
 
 
 #initial guess
-parStart <- list(A=8,B=5,k1=0.1,k2=0.001)
+parStart <- list(A=6,B=6,k1=0.325,k2=0.03)
 
-plotSet2(myb,sets[5,])
-a<-flowSet(myb,sets[13,])
+#fit by plot basis
+s <- 8
+
+for(ind in seq(0,5)){
+  column<-repeats[ind+1] # find the column name
+  b <- unlist(flowSet(myb,sets[s,],column))
+  b
+  a[6*s+ind,1:4] <- unlist(b)
+  
+  
+  
+}
+
+
+
+
+
+
+
 
 #plot all the svg files
 apply(sets,1,plotSet,data=myb)
