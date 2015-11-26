@@ -59,8 +59,6 @@ tset <- subset(myb, buffer == "PBS" & lipid == "POPCPOPS" & temp == 25 & conc==1
 q <- ggplot(tset,aes(x=Time,y=DF,group=R,color=R))
 q + geom_point() + theme_minimal(base_size=18)
 
-
-
 #simple fitting
 
 #define a suitable test function
@@ -72,8 +70,6 @@ exp2 <- function(tt,params){
   params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))+(params$A-params$B)*(1-exp(-1*params$k2*tt))
 }
 
-
-
 #calculate the residuals
 residFun <- function(p,observed,tt){
   observed - exp2(tt,p)
@@ -83,17 +79,15 @@ residFun <- function(p,observed,tt){
 
 fitTrace <- function(data,params){
   nls.out <- nls.lm(par=params, fn = residFun, observed = data$DF, tt = t, control = nls.lm.control(nprint=1))
-  summary(nls.out)
+  print(nls.out)
   ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
 }
 
 fitSet <- function(data,params,column){
   obs <- subset(data, R==column)
   nls.out <- nls.lm(par=params, fn = residFun, observed = obs$DF, tt = t,control = nls.lm.control(nprint=0) )
-  summary(nls.out)
-  #ret <- c(nls.out$par$A,nls.out$par$B,nls.out$par$k1,nls.out$par$k2,nls.out$deviance) #add all other params
+  print(summary(nls.out))
   ret <- nls.out$par
-  #ret <- nls.out
 }
 
 t=seq(0,60,length.out=1000)
@@ -126,6 +120,7 @@ isData <- function(data,params){
   ret
 }
 
+#puts the results in the sets df
 sets$data <- apply(sets,1, isData, data=myb)
 
 #fitting the sets for each sample type
@@ -192,24 +187,18 @@ plotSetKnitr <- function(data,params){
 parStart <- list(A=6,B=6,k1=0.325,k2=0.03)
 
 #fit by plot basis
-s <- 8
+s <- 10
 
 for(ind in seq(0,5)){
   column<-repeats[ind+1] # find the column name
   b <- unlist(flowSet(myb,sets[s,],column))
   b
   a[6*s+ind,1:4] <- unlist(b)
-  
-  
-  
 }
 
 
 
-
-
-
-
+##### PLOTTING #######
 
 #plot all the svg files
 apply(sets,1,plotSet,data=myb)
