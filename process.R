@@ -4,8 +4,8 @@ library(reshape2)
 library(minpack.lm) #for non-linear least squares
 
 
-#base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
-base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
+base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
+#base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
 data.sources = list.files(base_dir,pattern="*.csv",full.names=TRUE)
 
 #function to read in the data files, ignoring the first 34 rows of csv file
@@ -66,8 +66,12 @@ exp1 <- function(tt,params){
   params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))
 }
 
+#exp2 <- function(tt,params){
+#  params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))+(params$A-params$B)*(1-exp(-1*params$k2*tt))
+#}
+
 exp2 <- function(tt,params){
-  params$B + (params$A-params$B)*(1-exp(-1*params$k1*tt))+(params$A-params$B)*(1-exp(-1*params$k2*tt))
+  params$A + params$B*(1-exp(-1*params$k1*tt))#+params$C*(1-exp(-1*params$k2*tt))
 }
 
 #calculate the residuals
@@ -143,6 +147,11 @@ flowSet <- function(data,params,column){
   return(fitParams)
 }
 
+flowData <-function(data,params,column){
+    pl = as.list(params)
+    wds <- subset(data,lipid==pl$lipid & conc==as.numeric(pl$conc) & temp==as.numeric(pl$temp) & buffer==pl$buffer & R==column)
+}
+
 #plot the sets for each sample type
 plotSet <- function(data,params){
   pl = as.list(params)
@@ -184,10 +193,10 @@ plotSetKnitr <- function(data,params){
 
 
 #initial guess
-parStart <- list(A=6,B=6,k1=0.325,k2=0.03)
+parStart <- list(A=5.95,B=0.6,k1=0.4)
 
 #fit by plot basis
-s <- 10
+s <- 9
 
 for(ind in seq(0,5)){
   column<-repeats[ind+1] # find the column name
@@ -196,7 +205,28 @@ for(ind in seq(0,5)){
   a[6*s+ind,1:4] <- unlist(b)
 }
 
+column <- "R2"
 
+wd <- flowData(myb,sets[s,],column)
+#set the min to A fitting parameter
+minDF <- min(wd$DF)
+parStart$A <- minDF
+
+b<-flowSet(myb,sets[s,],column)
+ft <- exp2(t,b)
+
+layout(matrix(1:2, ncol = 1), widths = 1, heights = c(2,1.4), respect = FALSE)
+par(mar = c(0, 4.1, 3, 2.1))
+plot(t,wd$DF,xaxt="n")
+lines(t,ft,col="red")
+par(mar = c(4.1, 4.1, 0.3, 2.1))
+plot(t,wd$DF-ft,ylab = "Residuals", xlab = "Time (s)")
+
+par(mfrow=c(1,1))
+wd <- flowData(myb,sets[s,],column)
+plot(t,wd$DF)
+parStart <- list(A=5.95,B=0.6,k1=0.4)
+lines(t,exp2(t,parStart))
 
 ##### PLOTTING #######
 
@@ -210,7 +240,6 @@ allplots<-apply(sets,1,plotSetKnitr,data=myb)
 #fitData <- lapply(datacols,fitSet,data=a,params=parStart)
 #fitData2 <- lapply(datacols,fitSet,data=tset,params=parStart)
 
-
 #nls.out <- fitSet(tset,parStart,"R5")  # ONLY WORKS IF OUTPUT IS NLS.OUT
 
 #plotting
@@ -222,8 +251,6 @@ allplots<-apply(sets,1,plotSetKnitr,data=myb)
 #lines(t,fitLine,col="#FF0000")
 #par(mar = c(4.1, 4.1, 0.3, 2.1))
 #plot(t,nls.out$fvec,ylab = "Residuals", xlab = "Time (s)")
-
-
 
 #subset the data from the melt version and run the fit over each sample
 profunc <- function(params,data){
