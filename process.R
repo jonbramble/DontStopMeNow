@@ -4,8 +4,8 @@ library(reshape2)
 library(minpack.lm) #for non-linear least squares
 
 
-base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
-#base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
+#base_dir = "/media/jon/kelima/jon/Data/StoppedFlow/Durham_140515"
+base_dir = "/media/mbzjpb/data/Experimental/StoppedFlow/Durham_140515"
 data.sources = list.files(base_dir,pattern="*.csv",full.names=TRUE)
 
 #function to read in the data files, ignoring the first 34 rows of csv file
@@ -196,7 +196,7 @@ plotSetKnitr <- function(data,params){
 parStart <- list(A=5.95,B=0.6,k1=0.4)
 
 #fit by plot basis
-s <- 9
+s <- 8
 
 for(ind in seq(0,5)){
   column<-repeats[ind+1] # find the column name
